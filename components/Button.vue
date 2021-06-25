@@ -19,7 +19,7 @@
       type === 'white'
         ? 'bg-gray-100 hover:bg-gray-200'
         : 'bg-gradient-to-r from-green-400 to-yellow-400 hover:from-green-300 hover:to-yellow-300',
-      { 'w-full': full },
+      full ? 'w-full' : 'min-content',
     ]"
     @click="onClick"
   >

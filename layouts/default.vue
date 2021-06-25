@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-gray-900">
+  <div class="bg-gray-900 min-h-screen flex flex-col justify-between">
     <Nuxt />
     <section class="bg-gray-800">
       <div class="px-4 md:px-0 container m-auto py-4">

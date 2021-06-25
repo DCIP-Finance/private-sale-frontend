@@ -5,10 +5,11 @@
     :target="href ? '_blank' : undefined"
     :disabled="disabled"
     class="
+      uppercase
       flex
       items-center
       justify-between
-      font-mono
+      tracking-wider
       text-gray-900
       rounded-lg
       px-4

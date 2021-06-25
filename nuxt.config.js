@@ -2,11 +2,9 @@ export default {
   // Target: https://go.nuxtjs.dev/config-target
   target: 'static',
 
-  components: true,
-
   // Global page headers: https://go.nuxtjs.dev/config-head
   head: {
-    title: 'private-sale',
+    title: 'Presale | DCIP.finance',
     htmlAttrs: {
       lang: 'en',
     },
@@ -33,6 +31,12 @@ export default {
     ],
   },
 
+  googleFonts: {
+    families: {
+      Poppins: true,
+    },
+  },
+
   // Global CSS: https://go.nuxtjs.dev/config-css
   css: [],
 
@@ -51,6 +55,9 @@ export default {
 
     // https://composition-api.nuxtjs.org/
     '@nuxtjs/composition-api/module',
+
+    // https://google-fonts.nuxtjs.org/
+    '@nuxtjs/google-fonts',
   ],
 
   // Modules: https://go.nuxtjs.dev/config-modules

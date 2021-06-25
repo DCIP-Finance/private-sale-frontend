@@ -4,11 +4,10 @@
       class="transition"
       :class="modalVisible ? 'opacity-100 visible' : 'opacity-0 invisible'"
       @close="modalVisible = false"
-      >Hello World!</Modal
-    >
+    />
 
     <div class="md:px-12">
-      <section class="mb-12 md:mb-36">
+      <section class="mb-12 md:mb-32">
         <img src="~/assets/logo.png" alt="DCIP Logo" class="max-h-6" />
       </section>
 
@@ -27,7 +26,7 @@
           >
             <p class="font-semibold text-lg">$DCIP</p>
           </div>
-          <h1 class="text-white text-3xl md:text-5xl font-bold">
+          <h1 class="text-white text-3xl md:text-5xl font-bold leading-snug">
             Whitelisted for the
             <span class="text-green-400">private sale?</span>
           </h1>
@@ -133,7 +132,7 @@
             ></div>
           </div>
           <div class="flex">
-            <div class="text-gray-700 text-lg mr-2">
+            <div class="text-gray-600 text-lg mr-2">
               <p>DCIP</p>
               <p>BNB</p>
             </div>
@@ -184,7 +183,7 @@ import privateSaleABI from '@/abis/private-sale.json'
 export default defineComponent({
   setup() {
     const chainRPC = 'https://data-seed-prebsc-1-s1.binance.org:8545/'
-    const walletAddress = '0x5dafcb3701a22cde4aa830c9f8e5027145df1ec3'
+    const walletAddress = '0xd6977d99d526377dac3b3b0dd4f3d854ee8cd956'
 
     const providerOptions = {
       walletconnect: {
@@ -281,6 +280,7 @@ export default defineComponent({
 
         await setupAccount()
       } catch (error) {
+        alert(error)
         console.error(error)
       } finally {
         depositLoading.value = false
@@ -305,6 +305,7 @@ export default defineComponent({
 
         modalVisible.value = true
       } catch (error) {
+        alert(error)
         console.error(error)
       } finally {
         depositLoading.value = false

@@ -74,8 +74,9 @@
             <p class="text-gray-600 md:text-xl">Until Sale Ends</p>
           </div>
 
-          <Button type="gradient" icon=""
-            >Deposit<template #icon
+          <Button type="gradient" icon="" @click="onConnect"
+            >{{ connected ? 'Deposit' : 'Connect Wallet'
+            }}<template #icon
               ><svg
                 xmlns="http://www.w3.org/2000/svg"
                 xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -135,36 +136,342 @@
 </template>
 
 <script>
-import { defineComponent } from '@nuxtjs/composition-api'
+import { defineComponent, ref } from '@nuxtjs/composition-api'
+
+import Web3 from 'web3'
+import Web3Modal from 'web3modal'
+import WalletConnectProvider from '@walletconnect/web3-provider'
 
 export default defineComponent({
   setup() {
-    const openAuditReport = () => {
-      window.open('~/assets/audit_report.pdf', '_blank')
+    const providerOptions = {
+      walletconnect: {
+        package: WalletConnectProvider, // required
+        options: {
+          rpc: {
+            56: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
+          },
+          network: 'binance',
+          chainId: 56,
+        },
+      },
     }
+
+    const connected = ref(false)
+
+    let web3
+    let provider
+    let web3Modal
+
+    const onAccountChanged = () => {}
+    const onChainChanged = () => {}
+    const onConnected = () => {}
+    const onDisconnected = () => {
+      connected.value = false
+    }
+
+    const onConnect = async () => {
+      web3Modal = new Web3Modal({
+        network: 'binance',
+        cacheProvider: false,
+        providerOptions,
+        theme: 'dark',
+      })
+
+      try {
+        provider = await web3Modal.connect()
+        provider.on('accountsChanged', onAccountChanged)
+        provider.on('chainChanged', onChainChanged)
+        provider.on('connect', onConnected)
+        provider.on('disconnect', onDisconnected)
+        web3 = new Web3(provider)
+        connected.value = true
+      } catch (error) {
+        console.error('Something went wrong')
+      }
+    }
+
+    const getSaleEndTimestamp = async () => {
+      const abi = [
+        {
+          inputs: [
+            { internalType: 'contract IDCIP', name: '_token', type: 'address' },
+            { internalType: 'uint256', name: '_rate', type: 'uint256' },
+          ],
+          stateMutability: 'nonpayable',
+          type: 'constructor',
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: 'address',
+              name: 'user',
+              type: 'address',
+            },
+            {
+              indexed: false,
+              internalType: 'uint256',
+              name: 'amount',
+              type: 'uint256',
+            },
+          ],
+          name: 'Deposited',
+          type: 'event',
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: 'address',
+              name: 'previousOwner',
+              type: 'address',
+            },
+            {
+              indexed: true,
+              internalType: 'address',
+              name: 'newOwner',
+              type: 'address',
+            },
+          ],
+          name: 'OwnershipTransferred',
+          type: 'event',
+        },
+        {
+          anonymous: false,
+          inputs: [
+            {
+              indexed: true,
+              internalType: 'address',
+              name: 'user',
+              type: 'address',
+            },
+            {
+              indexed: false,
+              internalType: 'uint256',
+              name: 'amount',
+              type: 'uint256',
+            },
+          ],
+          name: 'Withdrawn',
+          type: 'event',
+        },
+        {
+          inputs: [
+            {
+              internalType: 'address payable',
+              name: '_address',
+              type: 'address',
+            },
+          ],
+          name: 'addWhiteList',
+          outputs: [],
+          stateMutability: 'nonpayable',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'deposit',
+          outputs: [],
+          stateMutability: 'payable',
+          type: 'function',
+        },
+        {
+          inputs: [{ internalType: 'address', name: '', type: 'address' }],
+          name: 'deposits',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [
+            { internalType: 'address', name: '_address', type: 'address' },
+          ],
+          name: 'getCalculatedAmount',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'getDepositAmount',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'getLeftTimeAmount',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'hardCapEthAmount',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'maximumDepositEthAmount',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'minimumDepositEthAmount',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'owner',
+          outputs: [{ internalType: 'address', name: '', type: 'address' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'presaleEndTimestamp',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'presaleStartTimestamp',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'rate',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'releaseFunds',
+          outputs: [],
+          stateMutability: 'nonpayable',
+          type: 'function',
+        },
+        {
+          inputs: [
+            {
+              internalType: 'address payable',
+              name: '_address',
+              type: 'address',
+            },
+          ],
+          name: 'removeWhiteList',
+          outputs: [],
+          stateMutability: 'nonpayable',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'renounceOwnership',
+          outputs: [],
+          stateMutability: 'nonpayable',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'token',
+          outputs: [
+            { internalType: 'contract IDCIP', name: '', type: 'address' },
+          ],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'totalDepositedEthBalance',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [
+            { internalType: 'address', name: 'newOwner', type: 'address' },
+          ],
+          name: 'transferOwnership',
+          outputs: [],
+          stateMutability: 'nonpayable',
+          type: 'function',
+        },
+        {
+          inputs: [{ internalType: 'address', name: '', type: 'address' }],
+          name: 'unlocked',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [{ internalType: 'address', name: '', type: 'address' }],
+          name: 'whitelist',
+          outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        {
+          inputs: [],
+          name: 'withdraw',
+          outputs: [],
+          stateMutability: 'nonpayable',
+          type: 'function',
+        },
+        {
+          inputs: [
+            { internalType: 'uint256', name: 'amount', type: 'uint256' },
+          ],
+          name: 'withdrawRewards',
+          outputs: [],
+          stateMutability: 'nonpayable',
+          type: 'function',
+        },
+        {
+          inputs: [{ internalType: 'address', name: '', type: 'address' }],
+          name: 'withdraws',
+          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+        { stateMutability: 'payable', type: 'receive' },
+      ]
+
+      const _web3 = new Web3('https://data-seed-prebsc-1-s1.binance.org:8545/')
+
+      const contract = new _web3.eth.Contract(
+        abi,
+        '0x5dafcb3701a22cde4aa830c9f8e5027145df1ec3'
+      )
+
+      const res = await contract.methods.presaleEndTimestamp().call()
+
+      console.log(res)
+
+      // contractInstance.presaleEndTimestamp.call({}, (err, data) =>
+      //   console.log(err, data)
+    }
+
+    getSaleEndTimestamp()
+
     return {
-      openAuditReport,
+      onConnect,
+      getSaleEndTimestamp,
+      connected,
+      web3,
     }
-    // let web3
-    // // let provider
-    // const connected = ref(false)
-    // const isConnecting = ref(false)
-    // const connectWallet = async () => {
-    //   isConnecting.value = true
-    //   // web3 = new Web3('https://data-seed-prebsc-1-s1.binance.org:8545')
-    //   if (process.browser) {
-    //     const accounts = await window.ethereum.request({
-    //       method: 'eth_requestAccounts',
-    //     })
-    //   }
-    // }
-    // connectWallet()
-    // return {
-    //   connectWallet,
-    //   web3,
-    //   connected,
-    //   isConnecting,
-    // }
   },
 })
 </script>

@@ -4,7 +4,7 @@
     <section class="bg-gray-800">
       <div class="px-4 md:px-0 container m-auto py-4">
         <p class="text-gray-600 text-center pb-4 w-full">
-          © 2021 Decentralised Community Investment Protocol
+          © 2021 Decentralized Community Investment Protocol
         </p>
         <a
           target="_blank"

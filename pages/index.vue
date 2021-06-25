@@ -76,23 +76,42 @@
             <p class="text-gray-600 md:text-xl">Until Sale Ends</p>
           </div>
 
-          <!-- :disabled="connected && !whitelisted" -->
+          <div class="flex">
+            <div
+              v-if="connected"
+              :class="{ 'opacity-60': !whitelisted }"
+              class="flex items-center bg-gray-700 mr-4 rounded-lg"
+            >
+              <input
+                v-model="depositValue"
+                :disabled="!whitelisted"
+                type="number"
+                min="1"
+                max="50"
+                class="bg-gray-700 text-white rounded px-4 h-full"
+              />
+              <p class="text-white font-bold pr-4">BNB</p>
+            </div>
 
-          <Button type="gradient" @click="connectOrDeposit"
-            >{{ connected ? 'Deposit' : 'Connect Wallet'
-            }}<template #icon
-              ><svg
-                xmlns="http://www.w3.org/2000/svg"
-                xmlns:xlink="http://www.w3.org/1999/xlink"
-                version="1.1"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M4,11V13H16L10.5,18.5L11.92,19.92L19.84,12L11.92,4.08L10.5,5.5L16,11H4Z"
-                /></svg></template
-          ></Button>
+            <Button
+              type="gradient"
+              :disabled="connected && !whitelisted"
+              @click="connectOrDeposit"
+              >{{ connected ? 'Deposit' : 'Connect Wallet'
+              }}<template #icon
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  xmlns:xlink="http://www.w3.org/1999/xlink"
+                  version="1.1"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M4,11V13H16L10.5,18.5L11.92,19.92L19.84,12L11.92,4.08L10.5,5.5L16,11H4Z"
+                  /></svg></template
+            ></Button>
+          </div>
 
-          <p v-if="connected && !whitelisted">
+          <p v-if="connected && !whitelisted" class="text-white mt-4">
             Sorry, this sale is only for whitelisted accounts
           </p>
         </div>
@@ -100,7 +119,7 @@
         <div class="h-3 bg-gray-800 rounded-full mb-2">
           <div
             :style="`width: ${percentHardcap}%; min-width: 10px`"
-            class="bg-green-400 rounded-full h-full"
+            class="bg-green-400 rounded-full h-full transition-all"
           ></div>
         </div>
         <div class="flex">
@@ -118,7 +137,7 @@
 
     <section class="mb-12 md:hidden">
       <div class="w-48">
-        <Button href="/audit_report.pdf" :full="true"
+        <Button href="/audit_report.pdf" :full="true" class="mb-4"
           >AUDIT REPORT<template #icon
             ><svg
               xmlns="http://www.w3.org/2000/svg"
@@ -176,13 +195,9 @@ export default defineComponent({
     const dcipBalance = ref(-1)
     const currentWalletAddress = ref(null)
 
-    const saleEndFormatted = computed(() => {
-      const timeLeft = Math.max(saleEnd.value - new Date().getTime() / 1000, 0)
+    const depositValue = ref(1)
 
-      return `${Math.round(timeLeft / 3600)}h ${Math.round(
-        (timeLeft % 3600) / 60
-      )}m`
-    })
+    const saleEndFormatted = ref('00h 00m 00s')
 
     const userBalanceFormatted = computed(() =>
       formatDCIPBalance(userBalance.value)
@@ -260,7 +275,7 @@ export default defineComponent({
         await web3.eth.sendTransaction({
           from: currentWalletAddress.value,
           to: '0x5DafcB3701a22cdE4aa830C9f8E5027145DF1EC3',
-          value: 1000000000000000000,
+          value: 1000000000000000000 * depositValue.value,
           data: abi,
         })
 
@@ -364,9 +379,21 @@ export default defineComponent({
       return balance / 1000000000000000000
     }
 
-    getSaleEndTimestamp()
+    const computeSaleEndFormatted = () => {
+      const timeLeft = Math.max(saleEnd.value - new Date().getTime() / 1000, 0)
 
+      const date = new Date(timeLeft * 1000).toISOString()
+
+      saleEndFormatted.value = `${date.substr(11, 2)}h ${date.substr(
+        14,
+        2
+      )}m ${date.substr(17, 2)}s`
+    }
+
+    getSaleEndTimestamp()
     getDCIPBalance()
+
+    setInterval(computeSaleEndFormatted, 1000)
 
     return {
       connectOrDeposit,
@@ -381,6 +408,7 @@ export default defineComponent({
       dcipBalanceFormatted,
       bnbBalanceFormatted,
       percentHardcap,
+      depositValue,
       web3,
     }
   },

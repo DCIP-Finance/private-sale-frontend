@@ -3,8 +3,8 @@
     :is="href ? 'a' : 'button'"
     :href="href"
     :target="href ? '_blank' : undefined"
+    :disabled="disabled"
     class="
-      mb-4
       flex
       items-center
       justify-between
@@ -16,10 +16,15 @@
       top-px
     "
     :class="[
-      type === 'white'
-        ? 'bg-gray-100 hover:bg-gray-200'
-        : 'bg-gradient-to-r from-green-400 to-yellow-400 hover:from-green-300 hover:to-yellow-300',
-      full ? 'w-full' : 'min-content',
+      {
+        'bg-gray-100': type === 'white',
+        'hover:bg-gray-200': type === 'white' && !disabled,
+
+        'bg-gradient-to-r from-green-400 to-yellow-400': type === 'gradient',
+        'hover:from-green-300 hover:to-yellow-300':
+          type === 'gradient' && !disabled,
+      },
+      { 'opacity-60 cursor-not-allowed': disabled },
     ]"
     @click="onClick"
   >
@@ -48,6 +53,10 @@ export default defineComponent({
       default: 'white',
     },
     full: {
+      type: Boolean,
+      default: false,
+    },
+    disabled: {
       type: Boolean,
       default: false,
     },

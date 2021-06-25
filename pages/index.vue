@@ -87,12 +87,17 @@
             <div class="flex">
               <div
                 v-if="connected"
-                :class="{ 'opacity-60': !whitelisted || depositLoading }"
+                :class="{
+                  'opacity-60':
+                    !whitelisted || depositLoading || (connected && saleEnded),
+                }"
                 class="flex items-center bg-gray-700 mr-4 rounded-lg"
               >
                 <input
                   v-model="depositValue"
-                  :disabled="!whitelisted || depositLoading"
+                  :disabled="
+                    !whitelisted || depositLoading || (connected && saleEnded)
+                  "
                   type="number"
                   min="1"
                   max="50"
@@ -104,7 +109,11 @@
               <Button
                 type="gradient"
                 :loading="depositLoading"
-                :disabled="(connected && !whitelisted) || depositLoading"
+                :disabled="
+                  (connected && !whitelisted) ||
+                  depositLoading ||
+                  (connected && saleEnded)
+                "
                 @click="connectOrDeposit"
                 >{{ connected ? 'DEPOSIT' : 'CONNECT WALLET'
                 }}<template #icon
@@ -121,7 +130,13 @@
             </div>
 
             <p v-if="connected && !whitelisted" class="text-white mt-4">
-              Sorry, this sale is only for whitelisted accounts
+              Sorry, this sale is only for whitelisted accounts.
+            </p>
+
+            <p v-if="saleEnded" class="text-white mt-4">The sale had ended.</p>
+
+            <p v-if="errorMessage" class="mt-4 text-red-400">
+              {{ errorMessageFormatted }}
             </p>
           </div>
           <p class="text-white text-xl mb-2 font-bold">Private Sale Hardcap</p>
@@ -183,7 +198,7 @@ import privateSaleABI from '@/abis/private-sale.json'
 export default defineComponent({
   setup() {
     const chainRPC = 'https://data-seed-prebsc-1-s1.binance.org:8545/'
-    const walletAddress = '0xd6977d99d526377dac3b3b0dd4f3d854ee8cd956'
+    const walletAddress = '0xf1cd683e7796205f2b57258ca03933fed53ca030'
 
     const providerOptions = {
       walletconnect: {
@@ -208,7 +223,17 @@ export default defineComponent({
     const depositLoading = ref(false)
     const modalVisible = ref(false)
 
+    const errorMessage = ref('')
+
     const saleEndFormatted = ref('00h 00m 00s')
+
+    const errorMessageFormatted = computed(
+      () => errorMessage.value.split(': {')[0]
+    )
+
+    const saleEnded = computed(() => {
+      return saleEnd.value - new Date().getTime() / 1000 <= 0
+    })
 
     const userBalanceFormatted = computed(() =>
       formatDCIPBalance(userBalance.value)
@@ -232,20 +257,16 @@ export default defineComponent({
 
     const contract = new web3.eth.Contract(privateSaleABI, walletAddress)
 
-    const onAccountChanged = (accounts) => {
+    const onAccountChanged = () => {
       setupAccount()
-    }
-    const onChainChanged = (chainId) => {
-      console.log(chainId)
-    }
-    const onConnected = (chainId, asdf) => {
-      console.log(chainId, asdf)
     }
     const onDisconnected = () => {
       connected.value = false
     }
 
     const connectOrDeposit = () => {
+      errorMessage.value = ''
+
       if (!connected.value) {
         onConnect()
       } else {
@@ -272,16 +293,13 @@ export default defineComponent({
       try {
         provider = await web3Modal.connect()
         provider.on('accountsChanged', onAccountChanged)
-        provider.on('chainChanged', onChainChanged)
-        provider.on('connect', onConnected)
         provider.on('disconnect', onDisconnected)
 
         web3 = new Web3(provider)
 
         await setupAccount()
       } catch (error) {
-        alert(error)
-        console.error(error)
+        errorMessage.value = error.message
       } finally {
         depositLoading.value = false
       }
@@ -305,8 +323,7 @@ export default defineComponent({
 
         modalVisible.value = true
       } catch (error) {
-        alert(error)
-        console.error(error)
+        errorMessage.value = error.message
       } finally {
         depositLoading.value = false
       }
@@ -438,6 +455,9 @@ export default defineComponent({
       depositLoading,
       modalVisible,
       web3,
+      saleEnded,
+      errorMessage,
+      errorMessageFormatted,
     }
   },
 })

@@ -71,7 +71,7 @@
         <div class="bg-gray-800 rounded-lg px-4 md:px-6 py-6 mb-12">
           <div class="mb-6">
             <h2 class="text-white text-2xl md:text-3xl font-bold">3h 24m</h2>
-            <p class="text-gray-700 font-bold md:text-xl">Until Sale Ends</p>
+            <p class="text-gray-600 md:text-xl">Until Sale Ends</p>
           </div>
 
           <Button type="gradient" icon=""

@@ -1,6 +1,8 @@
 <template>
-  <div class="bg-gray-900 min-h-screen flex flex-col justify-between">
-    <Nuxt />
+  <div class="bg-gray-900 flex flex-col justify-between min-h-screen">
+    <div id="background">
+      <Nuxt />
+    </div>
     <section class="bg-gray-800">
       <div class="px-4 md:px-0 container m-auto py-4">
         <p class="text-gray-600 text-center pb-4 w-full">
@@ -35,5 +37,13 @@ html {
 *::after {
   box-sizing: border-box;
   margin: 0;
+}
+
+#background {
+  background: url('~assets/ellipses.png');
+
+  background-repeat: no-repeat;
+  background-position: left -30%;
+  background-size: 50%;
 }
 </style>

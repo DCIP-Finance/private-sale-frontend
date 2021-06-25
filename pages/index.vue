@@ -1,7 +1,7 @@
 <template>
-  <div class="px-4 md:px-0 container m-auto py-4">
+  <div class="px-4 md:px-0 container m-auto pt-4 md:mt-8">
     <div class="md:px-12">
-      <section class="mb-12 md:mb-20">
+      <section class="mb-12 md:mb-36">
         <img src="~/assets/logo.png" alt="DCIP Logo" class="max-h-6" />
       </section>
 

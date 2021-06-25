@@ -76,10 +76,9 @@
             <p class="text-gray-600 md:text-xl">Until Sale Ends</p>
           </div>
 
-          <Button
-            type="gradient"
-            :disabled="connected && !whitelisted"
-            @click="connectOrDeposit"
+          <!-- :disabled="connected && !whitelisted" -->
+
+          <Button type="gradient" @click="connectOrDeposit"
             >{{ connected ? 'Deposit' : 'Connect Wallet'
             }}<template #icon
               ><svg
@@ -100,7 +99,7 @@
         <p class="text-white text-xl mb-2 font-bold">Private Sale Hardcap</p>
         <div class="h-3 bg-gray-800 rounded-full mb-2">
           <div
-            :style="`width: ${percentHardcap}%; min-width: 16px`"
+            :style="`width: ${percentHardcap}%; min-width: 10px`"
             class="bg-green-400 rounded-full h-full"
           ></div>
         </div>
@@ -178,7 +177,7 @@ export default defineComponent({
     const currentWalletAddress = ref(null)
 
     const saleEndFormatted = computed(() => {
-      const timeLeft = saleEnd.value - new Date().getTime() / 1000
+      const timeLeft = Math.max(saleEnd.value - new Date().getTime() / 1000, 0)
 
       return `${Math.round(timeLeft / 3600)}h ${Math.round(
         (timeLeft % 3600) / 60
@@ -250,11 +249,29 @@ export default defineComponent({
 
         await setupAccount()
       } catch (error) {
-        console.error('Something went wrong')
+        console.error(error)
       }
     }
 
-    const onDeposit = () => {}
+    const onDeposit = async () => {
+      try {
+        const abi = await contract.methods.deposit().encodeABI()
+
+        await web3.eth.sendTransaction({
+          from: currentWalletAddress.value,
+          to: '0x5DafcB3701a22cdE4aa830C9f8E5027145DF1EC3',
+          value: 1000000000000000000,
+          data: abi,
+        })
+
+        getUserBalance()
+        getDCIPBalance()
+
+        // whitelisted.value = res
+      } catch (error) {
+        console.error(error)
+      }
+    }
 
     const setupAccount = async () => {
       connected.value = false
@@ -314,6 +331,17 @@ export default defineComponent({
       }
     }
 
+    const chunkSubstr = (str, size) => {
+      const numChunks = Math.ceil(str.length / size)
+      const chunks = new Array(numChunks)
+
+      for (let i = 0, o = 0; i < numChunks; ++i, o += size) {
+        chunks[i] = str.substr(o, size)
+      }
+
+      return chunks
+    }
+
     const formatDCIPBalance = (balance) => {
       if (balance === -1) {
         return '-'
@@ -321,12 +349,11 @@ export default defineComponent({
 
       const value = Math.round((balance * 750) / 1000000000).toString()
 
-      const newStr = []
-      for (let i = value.length - 1; i >= 0; i--) {
-        newStr.push(i !== 0 && (i + 1) % 3 === 0 ? value[i] + ' ' : value[i])
-      }
-
-      return newStr.reverse().join('')
+      return chunkSubstr(value.split('').reverse().join(''), 3)
+        .join(' ')
+        .split('')
+        .reverse()
+        .join('')
     }
 
     const formatBNBBalance = (balance) => {
@@ -338,6 +365,7 @@ export default defineComponent({
     }
 
     getSaleEndTimestamp()
+
     getDCIPBalance()
 
     return {

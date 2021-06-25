@@ -79,12 +79,12 @@
           <div class="flex">
             <div
               v-if="connected"
-              :class="{ 'opacity-60': !whitelisted }"
+              :class="{ 'opacity-60': !whitelisted || depositLoading }"
               class="flex items-center bg-gray-700 mr-4 rounded-lg"
             >
               <input
                 v-model="depositValue"
-                :disabled="!whitelisted"
+                :disabled="!whitelisted || depositLoading"
                 type="number"
                 min="1"
                 max="50"
@@ -95,7 +95,8 @@
 
             <Button
               type="gradient"
-              :disabled="connected && !whitelisted"
+              :loading="depositLoading"
+              :disabled="(connected && !whitelisted) || depositLoading"
               @click="connectOrDeposit"
               >{{ connected ? 'Deposit' : 'Connect Wallet'
               }}<template #icon
@@ -173,6 +174,7 @@ import privateSaleABI from '@/abis/private-sale.json'
 export default defineComponent({
   setup() {
     const chainRPC = 'https://data-seed-prebsc-1-s1.binance.org:8545/'
+    const walletAddress = '0x5dafcb3701a22cde4aa830c9f8e5027145df1ec3'
 
     const providerOptions = {
       walletconnect: {
@@ -189,13 +191,12 @@ export default defineComponent({
 
     const connected = ref(false)
     const whitelisted = ref(false)
-
     const saleEnd = ref(0)
     const userBalance = ref(-1)
     const dcipBalance = ref(-1)
     const currentWalletAddress = ref(null)
-
     const depositValue = ref(1)
+    const depositLoading = ref(false)
 
     const saleEndFormatted = ref('00h 00m 00s')
 
@@ -219,10 +220,7 @@ export default defineComponent({
     let provider
     let web3Modal
 
-    const contract = new web3.eth.Contract(
-      privateSaleABI,
-      '0x5dafcb3701a22cde4aa830c9f8e5027145df1ec3'
-    )
+    const contract = new web3.eth.Contract(privateSaleABI, walletAddress)
 
     const onAccountChanged = (accounts) => {
       setupAccount()
@@ -246,11 +244,19 @@ export default defineComponent({
     }
 
     const onConnect = async () => {
+      depositLoading.value = true
+
       web3Modal = new Web3Modal({
         network: 'binance',
         cacheProvider: false,
         providerOptions,
-        theme: 'dark',
+        theme: {
+          background: '#2B2B2B',
+          main: '#767676',
+          secondary: '#767676',
+          border: '#363636',
+          hover: '#363636',
+        },
       })
 
       try {
@@ -265,17 +271,21 @@ export default defineComponent({
         await setupAccount()
       } catch (error) {
         console.error(error)
+      } finally {
+        depositLoading.value = false
       }
     }
 
     const onDeposit = async () => {
+      depositLoading.value = true
+
       try {
         const abi = await contract.methods.deposit().encodeABI()
 
         await web3.eth.sendTransaction({
           from: currentWalletAddress.value,
-          to: '0x5DafcB3701a22cdE4aa830C9f8E5027145DF1EC3',
-          value: 1000000000000000000 * depositValue.value,
+          to: walletAddress,
+          value: web3.utils.toWei(depositValue.value.toString()),
           data: abi,
         })
 
@@ -285,6 +295,8 @@ export default defineComponent({
         // whitelisted.value = res
       } catch (error) {
         console.error(error)
+      } finally {
+        depositLoading.value = false
       }
     }
 
@@ -316,6 +328,8 @@ export default defineComponent({
       try {
         const res = await contract.methods.presaleEndTimestamp().call()
         saleEnd.value = res
+
+        computeSaleEndFormatted()
       } catch (error) {
         console.error(error)
       }
@@ -376,7 +390,7 @@ export default defineComponent({
         return '-'
       }
 
-      return balance / 1000000000000000000
+      return web3.utils.fromWei(balance)
     }
 
     const computeSaleEndFormatted = () => {
@@ -409,6 +423,7 @@ export default defineComponent({
       bnbBalanceFormatted,
       percentHardcap,
       depositValue,
+      depositLoading,
       web3,
     }
   },

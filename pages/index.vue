@@ -62,7 +62,7 @@
             <div class="ml-3 w-5/6">
               <p class="text-gray-600 md:text-xl">$DCIP</p>
               <p class="text-white font-bold text-lg md:text-2xl">
-                750 000 000 000
+                {{ userBalanceFormatted }}
               </p>
             </div>
           </div>
@@ -70,11 +70,16 @@
 
         <div class="bg-gray-800 rounded-lg px-4 md:px-6 py-6 mb-12">
           <div class="mb-6">
-            <h2 class="text-white text-2xl md:text-3xl font-bold">3h 24m</h2>
+            <h2 class="text-white text-2xl md:text-3xl font-bold">
+              {{ saleEndFormatted }}
+            </h2>
             <p class="text-gray-600 md:text-xl">Until Sale Ends</p>
           </div>
 
-          <Button type="gradient" icon="" @click="onConnect"
+          <Button
+            type="gradient"
+            :disabled="connected && !whitelisted"
+            @click="connectOrDeposit"
             >{{ connected ? 'Deposit' : 'Connect Wallet'
             }}<template #icon
               ><svg
@@ -87,11 +92,15 @@
                   d="M4,11V13H16L10.5,18.5L11.92,19.92L19.84,12L11.92,4.08L10.5,5.5L16,11H4Z"
                 /></svg></template
           ></Button>
+
+          <p v-if="connected && !whitelisted">
+            Sorry, this sale is only for whitelisted accounts
+          </p>
         </div>
         <p class="text-white text-xl mb-2 font-bold">Private Sale Hardcap</p>
         <div class="h-3 bg-gray-800 rounded-full mb-2">
           <div
-            style="width: 34%"
+            :style="`width: ${percentHardcap}%; min-width: 16px`"
             class="bg-green-400 rounded-full h-full"
           ></div>
         </div>
@@ -101,8 +110,8 @@
             <p>BNB</p>
           </div>
           <div class="text-white font-bold text-lg">
-            <p>187500000000000</p>
-            <p>250</p>
+            <p>{{ dcipBalanceFormatted }}</p>
+            <p>{{ bnbBalanceFormatted }}</p>
           </div>
         </div>
       </div>
@@ -136,20 +145,23 @@
 </template>
 
 <script>
-import { defineComponent, ref } from '@nuxtjs/composition-api'
+import { computed, defineComponent, ref } from '@nuxtjs/composition-api'
 
 import Web3 from 'web3'
 import Web3Modal from 'web3modal'
 import WalletConnectProvider from '@walletconnect/web3-provider'
+import privateSaleABI from '@/abis/private-sale.json'
 
 export default defineComponent({
   setup() {
+    const chainRPC = 'https://data-seed-prebsc-1-s1.binance.org:8545/'
+
     const providerOptions = {
       walletconnect: {
         package: WalletConnectProvider, // required
         options: {
           rpc: {
-            56: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
+            56: chainRPC,
           },
           network: 'binance',
           chainId: 56,
@@ -158,16 +170,65 @@ export default defineComponent({
     }
 
     const connected = ref(false)
+    const whitelisted = ref(false)
 
-    let web3
+    const saleEnd = ref(0)
+    const userBalance = ref(-1)
+    const dcipBalance = ref(-1)
+    const currentWalletAddress = ref(null)
+
+    const saleEndFormatted = computed(() => {
+      const timeLeft = saleEnd.value - new Date().getTime() / 1000
+
+      return `${Math.round(timeLeft / 3600)}h ${Math.round(
+        (timeLeft % 3600) / 60
+      )}m`
+    })
+
+    const userBalanceFormatted = computed(() =>
+      formatDCIPBalance(userBalance.value)
+    )
+
+    const dcipBalanceFormatted = computed(() =>
+      formatDCIPBalance(dcipBalance.value)
+    )
+
+    const bnbBalanceFormatted = computed(() =>
+      formatBNBBalance(dcipBalance.value)
+    )
+
+    const percentHardcap = computed(
+      () => (dcipBalance.value / 250000000000000000000) * 100
+    )
+
+    let web3 = new Web3(chainRPC)
     let provider
     let web3Modal
 
-    const onAccountChanged = () => {}
-    const onChainChanged = () => {}
-    const onConnected = () => {}
+    const contract = new web3.eth.Contract(
+      privateSaleABI,
+      '0x5dafcb3701a22cde4aa830c9f8e5027145df1ec3'
+    )
+
+    const onAccountChanged = (accounts) => {
+      setupAccount()
+    }
+    const onChainChanged = (chainId) => {
+      console.log(chainId)
+    }
+    const onConnected = (chainId, asdf) => {
+      console.log(chainId, asdf)
+    }
     const onDisconnected = () => {
       connected.value = false
+    }
+
+    const connectOrDeposit = () => {
+      if (!connected.value) {
+        onConnect()
+      } else {
+        onDeposit()
+      }
     }
 
     const onConnect = async () => {
@@ -184,292 +245,114 @@ export default defineComponent({
         provider.on('chainChanged', onChainChanged)
         provider.on('connect', onConnected)
         provider.on('disconnect', onDisconnected)
+
         web3 = new Web3(provider)
-        connected.value = true
+
+        await setupAccount()
       } catch (error) {
         console.error('Something went wrong')
       }
     }
 
+    const onDeposit = () => {}
+
+    const setupAccount = async () => {
+      connected.value = false
+
+      const accounts = await web3.eth.getAccounts()
+
+      if (accounts.length) {
+        currentWalletAddress.value = accounts[0]
+        getUserBalance()
+      }
+
+      await getIsWhitelisted()
+
+      connected.value = true
+    }
+
+    const getDCIPBalance = async () => {
+      try {
+        const res = await contract.methods.totalDepositedEthBalance().call()
+        dcipBalance.value = res
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
     const getSaleEndTimestamp = async () => {
-      const abi = [
-        {
-          inputs: [
-            { internalType: 'contract IDCIP', name: '_token', type: 'address' },
-            { internalType: 'uint256', name: '_rate', type: 'uint256' },
-          ],
-          stateMutability: 'nonpayable',
-          type: 'constructor',
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: 'address',
-              name: 'user',
-              type: 'address',
-            },
-            {
-              indexed: false,
-              internalType: 'uint256',
-              name: 'amount',
-              type: 'uint256',
-            },
-          ],
-          name: 'Deposited',
-          type: 'event',
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: 'address',
-              name: 'previousOwner',
-              type: 'address',
-            },
-            {
-              indexed: true,
-              internalType: 'address',
-              name: 'newOwner',
-              type: 'address',
-            },
-          ],
-          name: 'OwnershipTransferred',
-          type: 'event',
-        },
-        {
-          anonymous: false,
-          inputs: [
-            {
-              indexed: true,
-              internalType: 'address',
-              name: 'user',
-              type: 'address',
-            },
-            {
-              indexed: false,
-              internalType: 'uint256',
-              name: 'amount',
-              type: 'uint256',
-            },
-          ],
-          name: 'Withdrawn',
-          type: 'event',
-        },
-        {
-          inputs: [
-            {
-              internalType: 'address payable',
-              name: '_address',
-              type: 'address',
-            },
-          ],
-          name: 'addWhiteList',
-          outputs: [],
-          stateMutability: 'nonpayable',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'deposit',
-          outputs: [],
-          stateMutability: 'payable',
-          type: 'function',
-        },
-        {
-          inputs: [{ internalType: 'address', name: '', type: 'address' }],
-          name: 'deposits',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [
-            { internalType: 'address', name: '_address', type: 'address' },
-          ],
-          name: 'getCalculatedAmount',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'getDepositAmount',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'getLeftTimeAmount',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'hardCapEthAmount',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'maximumDepositEthAmount',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'minimumDepositEthAmount',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'owner',
-          outputs: [{ internalType: 'address', name: '', type: 'address' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'presaleEndTimestamp',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'presaleStartTimestamp',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'rate',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'releaseFunds',
-          outputs: [],
-          stateMutability: 'nonpayable',
-          type: 'function',
-        },
-        {
-          inputs: [
-            {
-              internalType: 'address payable',
-              name: '_address',
-              type: 'address',
-            },
-          ],
-          name: 'removeWhiteList',
-          outputs: [],
-          stateMutability: 'nonpayable',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'renounceOwnership',
-          outputs: [],
-          stateMutability: 'nonpayable',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'token',
-          outputs: [
-            { internalType: 'contract IDCIP', name: '', type: 'address' },
-          ],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'totalDepositedEthBalance',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [
-            { internalType: 'address', name: 'newOwner', type: 'address' },
-          ],
-          name: 'transferOwnership',
-          outputs: [],
-          stateMutability: 'nonpayable',
-          type: 'function',
-        },
-        {
-          inputs: [{ internalType: 'address', name: '', type: 'address' }],
-          name: 'unlocked',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [{ internalType: 'address', name: '', type: 'address' }],
-          name: 'whitelist',
-          outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        {
-          inputs: [],
-          name: 'withdraw',
-          outputs: [],
-          stateMutability: 'nonpayable',
-          type: 'function',
-        },
-        {
-          inputs: [
-            { internalType: 'uint256', name: 'amount', type: 'uint256' },
-          ],
-          name: 'withdrawRewards',
-          outputs: [],
-          stateMutability: 'nonpayable',
-          type: 'function',
-        },
-        {
-          inputs: [{ internalType: 'address', name: '', type: 'address' }],
-          name: 'withdraws',
-          outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-          stateMutability: 'view',
-          type: 'function',
-        },
-        { stateMutability: 'payable', type: 'receive' },
-      ]
+      try {
+        const res = await contract.methods.presaleEndTimestamp().call()
+        saleEnd.value = res
+      } catch (error) {
+        console.error(error)
+      }
+    }
 
-      const _web3 = new Web3('https://data-seed-prebsc-1-s1.binance.org:8545/')
+    const getUserBalance = async () => {
+      try {
+        const res = await contract.methods
+          .deposits(currentWalletAddress.value)
+          .call()
 
-      const contract = new _web3.eth.Contract(
-        abi,
-        '0x5dafcb3701a22cde4aa830c9f8e5027145df1ec3'
-      )
+        console.log(res)
+        userBalance.value = res
+      } catch (error) {
+        console.error(error)
+      }
+    }
 
-      const res = await contract.methods.presaleEndTimestamp().call()
+    const getIsWhitelisted = async () => {
+      try {
+        const res = await contract.methods
+          .whitelist(currentWalletAddress.value)
+          .call()
 
-      console.log(res)
+        whitelisted.value = res
+      } catch (error) {
+        console.error(error)
+      }
+    }
 
-      // contractInstance.presaleEndTimestamp.call({}, (err, data) =>
-      //   console.log(err, data)
+    const formatDCIPBalance = (balance) => {
+      if (balance === -1) {
+        return '-'
+      }
+
+      const value = Math.round((balance * 750) / 1000000000).toString()
+
+      const newStr = []
+      for (let i = value.length - 1; i >= 0; i--) {
+        newStr.push(i !== 0 && (i + 1) % 3 === 0 ? value[i] + ' ' : value[i])
+      }
+
+      return newStr.reverse().join('')
+    }
+
+    const formatBNBBalance = (balance) => {
+      if (balance === -1) {
+        return '-'
+      }
+
+      return balance / 1000000000000000000
     }
 
     getSaleEndTimestamp()
+    getDCIPBalance()
 
     return {
-      onConnect,
+      connectOrDeposit,
       getSaleEndTimestamp,
+      getUserBalance,
       connected,
+      whitelisted,
+      saleEnd,
+      saleEndFormatted,
+      userBalance,
+      userBalanceFormatted,
+      dcipBalanceFormatted,
+      bnbBalanceFormatted,
+      percentHardcap,
       web3,
     }
   },

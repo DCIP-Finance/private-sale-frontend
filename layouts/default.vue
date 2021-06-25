@@ -43,7 +43,7 @@ html {
   background: url('~assets/ellipses.png');
 
   background-repeat: no-repeat;
-  background-position: left -30%;
+  background-position: -2% -30%;
   background-size: 50%;
 }
 </style>

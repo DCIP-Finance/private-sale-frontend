@@ -76,6 +76,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    centerText: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['click'],
   setup(_, { emit }) {

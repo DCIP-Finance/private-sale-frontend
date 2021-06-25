@@ -1,5 +1,12 @@
 <template>
   <div class="px-4 md:px-0 container m-auto pt-4 md:mt-8">
+    <Modal
+      class="transition"
+      :class="modalVisible ? 'opacity-100 visible' : 'opacity-0 invisible'"
+      @close="modalVisible = false"
+      >Hello World!</Modal
+    >
+
     <div class="md:px-12">
       <section class="mb-12 md:mb-36">
         <img src="~/assets/logo.png" alt="DCIP Logo" class="max-h-6" />
@@ -100,7 +107,7 @@
                 :loading="depositLoading"
                 :disabled="(connected && !whitelisted) || depositLoading"
                 @click="connectOrDeposit"
-                >{{ connected ? 'Deposit' : 'Connect Wallet'
+                >{{ connected ? 'DEPOSIT' : 'CONNECT WALLET'
                 }}<template #icon
                   ><svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -200,6 +207,7 @@ export default defineComponent({
     const currentWalletAddress = ref(null)
     const depositValue = ref(1)
     const depositLoading = ref(false)
+    const modalVisible = ref(false)
 
     const saleEndFormatted = ref('00h 00m 00s')
 
@@ -295,7 +303,7 @@ export default defineComponent({
         getUserBalance()
         getDCIPBalance()
 
-        // whitelisted.value = res
+        modalVisible.value = true
       } catch (error) {
         console.error(error)
       } finally {
@@ -427,6 +435,7 @@ export default defineComponent({
       percentHardcap,
       depositValue,
       depositLoading,
+      modalVisible,
       web3,
     }
   },

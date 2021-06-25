@@ -43,11 +43,11 @@
           md:mb-8
         "
       >
-        Thank you!
+        Congratulations!
       </h2>
 
       <p class="text-white text-lg text-center mb-4 md:mb-8">
-        Thanks for your support in our project.
+        Congratulations and thank you for your support in DCIP.
       </p>
 
       <Button type="white" :center-text="true" @click="onClose"

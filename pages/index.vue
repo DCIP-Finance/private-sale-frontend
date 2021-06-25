@@ -135,7 +135,7 @@
 
             <p v-if="saleEnded" class="text-white mt-4">The sale had ended.</p>
 
-            <p v-if="errorMessage" class="mt-4 text-red-400">
+            <p v-if="errorMessage" class="mt-4 text-red-400 overflow-ellipsis">
               {{ errorMessageFormatted }}
             </p>
           </div>
@@ -197,8 +197,8 @@ import privateSaleABI from '@/abis/private-sale.json'
 
 export default defineComponent({
   setup() {
-    const chainRPC = 'https://data-seed-prebsc-1-s1.binance.org:8545/'
-    const walletAddress = '0xf1cd683e7796205f2b57258ca03933fed53ca030'
+    const chainRPC = 'https://bsc-dataseed.binance.org/'
+    const walletAddress = '0xaac36a40a132472772c2bc410fcc275cc1b1df04'
 
     const providerOptions = {
       walletconnect: {

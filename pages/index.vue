@@ -210,6 +210,13 @@ export default defineComponent({
   setup() {
     const chainRPC = 'https://bsc-dataseed.binance.org/'
     const walletAddress = '0xaac36a40a132472772c2bc410fcc275cc1b1df04'
+    const hardcap = 250000000000000000000
+    const conversion = 750
+    const useWhitelist = true
+
+    let web3 = new Web3(chainRPC)
+    let provider
+    let web3Modal
 
     const providerOptions = {
       walletconnect: {
@@ -258,17 +265,9 @@ export default defineComponent({
       formatBNBBalance(dcipBalance.value)
     )
 
-    const hardCapReached = computed(
-      () => dcipBalance.value >= 250000000000000000000
-    )
+    const hardCapReached = computed(() => dcipBalance.value >= hardcap)
 
-    const percentHardcap = computed(
-      () => (dcipBalance.value / 250000000000000000000) * 100
-    )
-
-    let web3 = new Web3(chainRPC)
-    let provider
-    let web3Modal
+    const percentHardcap = computed(() => (dcipBalance.value / hardcap) * 100)
 
     const contract = new web3.eth.Contract(privateSaleABI, walletAddress)
 
@@ -393,6 +392,11 @@ export default defineComponent({
     }
 
     const getIsWhitelisted = async () => {
+      if (!useWhitelist) {
+        whitelisted.value = true
+        return
+      }
+
       try {
         const res = await contract.methods
           .whitelist(currentWalletAddress.value)
@@ -420,7 +424,7 @@ export default defineComponent({
         return '-'
       }
 
-      const value = Math.round((balance * 750) / 1000000000).toString()
+      const value = Math.round((balance * conversion) / 1000000000).toString()
 
       return chunkSubstr(value.split('').reverse().join(''), 3)
         .join(' ')

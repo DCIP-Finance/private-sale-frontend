@@ -68,9 +68,35 @@
                 </div>
               </div>
               <div class="ml-3 w-5/6">
-                <p class="text-gray-600 md:text-xl">$DCIP</p>
-                <p class="text-white font-bold text-lg md:text-2xl">
+                <p class="text-gray-600 md:text-xl">Locked Balance</p>
+                <p
+                  :class="saleEnded ? 'text-gray-600' : 'text-white'"
+                  class="text-white font-bold text-lg md:text-2xl"
+                >
                   {{ userBalanceFormatted }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-gray-800 rounded-lg p-4 mb-4">
+            <div class="flex">
+              <div class="flex justify-center items-center">
+                <div class="rounded-full bg-gray-700">
+                  <img
+                    src="~/assets/icon.png"
+                    alt="DCIP Icon"
+                    class="p-2 max-h-12"
+                  />
+                </div>
+              </div>
+              <div class="ml-3 w-5/6">
+                <p class="text-gray-600 md:text-xl">Available</p>
+                <p
+                  class="font-bold text-lg md:text-2xl"
+                  :class="saleEnded ? 'text-white' : 'text-gray-600'"
+                >
+                  {{ availableUserBalanceFormatted }}
                 </p>
               </div>
             </div>
@@ -81,29 +107,37 @@
               <h2 class="text-white text-2xl md:text-3xl font-bold">
                 {{ saleEndFormatted }}
               </h2>
-              <p class="text-gray-600 md:text-xl">Until Sale Ends</p>
+              <p class="text-gray-600 md:text-xl">Until next reward</p>
             </div>
 
-            <div class="flex">
+            <Button
+              v-if="!connected"
+              type="gradient"
+              :loading="connectLoading"
+              @click="connect"
+              >CONNECT WALLET<template #icon
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  xmlns:xlink="http://www.w3.org/1999/xlink"
+                  version="1.1"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M4,11V13H16L10.5,18.5L11.92,19.92L19.84,12L11.92,4.08L10.5,5.5L16,11H4Z"
+                  /></svg></template
+            ></Button>
+
+            <div v-if="connected && !saleEnded" class="flex">
               <div
-                v-if="connected"
                 :class="{
                   'opacity-60':
-                    !whitelisted ||
-                    depositLoading ||
-                    (connected && saleEnded) ||
-                    (connected && hardCapReached),
+                    !whitelisted || depositLoading || hardCapReached,
                 }"
                 class="flex items-center bg-gray-700 mr-4 rounded-lg"
               >
                 <input
                   v-model="depositValue"
-                  :disabled="
-                    !whitelisted ||
-                    depositLoading ||
-                    (connected && saleEnded) ||
-                    (connected && hardCapReached)
-                  "
+                  :disabled="!whitelisted || depositLoading || hardCapReached"
                   type="number"
                   min="1"
                   max="50"
@@ -115,15 +149,9 @@
               <Button
                 type="gradient"
                 :loading="depositLoading"
-                :disabled="
-                  (connected && !whitelisted) ||
-                  depositLoading ||
-                  (connected && saleEnded) ||
-                  (connected && saleEnded)
-                "
-                @click="connectOrDeposit"
-                >{{ connected ? 'DEPOSIT' : 'CONNECT WALLET'
-                }}<template #icon
+                :disabled="!whitelisted || depositLoading"
+                @click="deposit"
+                >DEPOSIT<template #icon
                   ><svg
                     xmlns="http://www.w3.org/2000/svg"
                     xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -136,21 +164,41 @@
               ></Button>
             </div>
 
-            <p v-if="connected && hardCapReached" class="text-white mt-4">
+            <Button
+              v-if="connected && saleEnded"
+              type="gradient"
+              :loading="withdrawLoading"
+              :disabled="availableUserBalance <= 0 || withdrawLoading"
+              @click="withdraw"
+              >CLAIM FUNDS<template #icon
+                ><svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  xmlns:xlink="http://www.w3.org/1999/xlink"
+                  version="1.1"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M4,11V13H16L10.5,18.5L11.92,19.92L19.84,12L11.92,4.08L10.5,5.5L16,11H4Z"
+                  /></svg></template
+            ></Button>
+
+            <p
+              v-if="connected && hardCapReached && !saleEnded"
+              class="text-white mt-4"
+            >
               Thanks for your amazing support! The hardcap has been reached and
               the sale has ended.
             </p>
+
             <p v-else-if="connected && !whitelisted" class="text-white mt-4">
               Sorry, this sale is only for whitelisted accounts.
             </p>
-
-            <p v-if="saleEnded" class="text-white mt-4">The sale had ended.</p>
 
             <p v-if="errorMessage" class="mt-4 text-red-400 overflow-ellipsis">
               {{ errorMessageFormatted }}
             </p>
           </div>
-          <p class="text-white text-xl mb-2 font-bold">Private Sale Hardcap</p>
+          <p class="text-white text-xl mb-2 font-bold">Current Sale Hardcap</p>
           <div class="h-3 bg-gray-800 rounded-full mb-2">
             <div
               :style="`width: ${percentHardcap}%; min-width: 10px`"
@@ -208,11 +256,14 @@ import privateSaleABI from '@/abis/private-sale.json'
 
 export default defineComponent({
   setup() {
-    const chainRPC = 'https://bsc-dataseed.binance.org/'
-    const walletAddress = '0xaac36a40a132472772c2bc410fcc275cc1b1df04'
+    const chainRPC = 'https://data-seed-prebsc-1-s1.binance.org:8545/'
+    const walletAddress = '0x17aab1e0745240ed1f4140f6fdd54485db8f6ec0'
+
+    // const chainRPC = 'https://bsc-dataseed.binance.org/'
+    // const walletAddress = '0xaac36a40a132472772c2bc410fcc275cc1b1df04'
     const hardcap = 250000000000000000000
     const conversion = 750
-    const useWhitelist = true
+    const useWhitelist = false
 
     let web3 = new Web3(chainRPC)
     let provider
@@ -235,10 +286,13 @@ export default defineComponent({
     const whitelisted = ref(false)
     const saleEnd = ref(0)
     const userBalance = ref(-1)
+    const availableUserBalance = ref(-1)
     const dcipBalance = ref(-1)
     const currentWalletAddress = ref(null)
     const depositValue = ref(1)
     const depositLoading = ref(false)
+    const withdrawLoading = ref(false)
+    const connectLoading = ref(false)
     const modalVisible = ref(false)
 
     const errorMessage = ref('')
@@ -255,6 +309,10 @@ export default defineComponent({
 
     const userBalanceFormatted = computed(() =>
       formatDCIPBalance(userBalance.value)
+    )
+
+    const availableUserBalanceFormatted = computed(() =>
+      formatDCIPBalance(availableUserBalance.value)
     )
 
     const dcipBalanceFormatted = computed(() =>
@@ -278,18 +336,9 @@ export default defineComponent({
       connected.value = false
     }
 
-    const connectOrDeposit = () => {
+    const connect = async () => {
       errorMessage.value = ''
-
-      if (!connected.value) {
-        onConnect()
-      } else {
-        onDeposit()
-      }
-    }
-
-    const onConnect = async () => {
-      depositLoading.value = true
+      connectLoading.value = true
 
       web3Modal = new Web3Modal({
         network: 'binance',
@@ -315,11 +364,12 @@ export default defineComponent({
       } catch (error) {
         errorMessage.value = error.message
       } finally {
-        depositLoading.value = false
+        connectLoading.value = false
       }
     }
 
-    const onDeposit = async () => {
+    const deposit = async () => {
+      errorMessage.value = ''
       depositLoading.value = true
 
       try {
@@ -332,14 +382,36 @@ export default defineComponent({
           data: abi,
         })
 
-        getUserBalance()
-        getDCIPBalance()
+        getBalances()
 
         modalVisible.value = true
       } catch (error) {
         errorMessage.value = error.message
       } finally {
         depositLoading.value = false
+      }
+    }
+
+    const withdraw = async () => {
+      errorMessage.value = ''
+      withdrawLoading.value = true
+
+      try {
+        const abi = await contract.methods.withdraw().encodeABI()
+
+        await web3.eth.sendTransaction({
+          from: currentWalletAddress.value,
+          to: walletAddress,
+          data: abi,
+        })
+
+        getBalances()
+
+        modalVisible.value = true
+      } catch (error) {
+        errorMessage.value = error.message
+      } finally {
+        withdrawLoading.value = false
       }
     }
 
@@ -350,7 +422,7 @@ export default defineComponent({
 
       if (accounts.length) {
         currentWalletAddress.value = accounts[0]
-        getUserBalance()
+        getBalances()
       }
 
       await getIsWhitelisted()
@@ -378,14 +450,35 @@ export default defineComponent({
       }
     }
 
+    const getBalances = () => {
+      getUserBalance()
+      getAvailableUserBalance()
+      getDCIPBalance()
+    }
+
     const getUserBalance = async () => {
       try {
-        const res = await contract.methods
+        const td = await contract.methods
           .deposits(currentWalletAddress.value)
           .call()
 
-        console.log(res)
-        userBalance.value = res
+        const totalWithdraw = await contract.methods
+          .withdraws(currentWalletAddress.value)
+          .call()
+
+        userBalance.value = convertBNBTokensToDCIPTokens(td) - totalWithdraw
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    const getAvailableUserBalance = async () => {
+      try {
+        const availableBalance = await contract.methods
+          .getCalculatedAmount(currentWalletAddress.value)
+          .call()
+
+        availableUserBalance.value = availableBalance
       } catch (error) {
         console.error(error)
       }
@@ -408,6 +501,10 @@ export default defineComponent({
       }
     }
 
+    const convertBNBTokensToDCIPTokens = (bnbWei) => {
+      return web3.utils.toBN((bnbWei * conversion).toString())
+    }
+
     const chunkSubstr = (str, size) => {
       const numChunks = Math.ceil(str.length / size)
       const chunks = new Array(numChunks)
@@ -424,7 +521,7 @@ export default defineComponent({
         return '-'
       }
 
-      const value = Math.round((balance * conversion) / 1000000000).toString()
+      const value = Math.round(balance / 1000000000).toString()
 
       return chunkSubstr(value.split('').reverse().join(''), 3)
         .join(' ')
@@ -458,7 +555,9 @@ export default defineComponent({
     setInterval(computeSaleEndFormatted, 1000)
 
     return {
-      connectOrDeposit,
+      connect,
+      deposit,
+      withdraw,
       getSaleEndTimestamp,
       getUserBalance,
       connected,
@@ -467,11 +566,15 @@ export default defineComponent({
       saleEndFormatted,
       userBalance,
       userBalanceFormatted,
+      availableUserBalance,
+      availableUserBalanceFormatted,
       dcipBalanceFormatted,
       bnbBalanceFormatted,
       percentHardcap,
       depositValue,
       depositLoading,
+      connectLoading,
+      withdrawLoading,
       modalVisible,
       web3,
       saleEnded,

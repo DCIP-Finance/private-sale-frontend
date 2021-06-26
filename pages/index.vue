@@ -3,6 +3,8 @@
     <Modal
       class="transition"
       :class="modalVisible ? 'opacity-100 visible' : 'opacity-0 invisible'"
+      :title="modalTitle"
+      :description="modalDescription"
       @close="modalVisible = false"
     />
 
@@ -26,10 +28,10 @@
           >
             <p class="font-semibold text-lg">$DCIP</p>
           </div>
-          <h1 class="text-white text-3xl md:text-5xl font-bold leading-snug">
-            Whitelisted for the
-            <span class="text-green-400">private sale?</span>
-          </h1>
+          <h1
+            class="text-white text-3xl md:text-5xl font-bold leading-snug"
+            v-html="title"
+          />
 
           <div class="hidden md:flex mt-8">
             <Button class="mr-4" href="/audit_report.pdf"
@@ -93,10 +95,16 @@
                 </div>
               </div>
               <div class="ml-3 w-5/6">
-                <p class="text-gray-600 md:text-xl">Available</p>
+                <p class="text-gray-600 md:text-xl">Claimable Balance</p>
                 <p
                   class="font-bold text-lg md:text-2xl"
-                  :class="saleEnded ? 'text-white' : 'text-gray-600'"
+                  :class="
+                    saleEnded
+                      ? availableUserBalance > 0
+                        ? 'text-green-400'
+                        : 'text-white'
+                      : 'text-gray-600'
+                  "
                 >
                   {{ availableUserBalanceFormatted }}
                 </p>
@@ -260,14 +268,15 @@ import privateSaleABI from '@/abis/private-sale.json'
 
 export default defineComponent({
   setup() {
-    const chainRPC = 'https://data-seed-prebsc-1-s1.binance.org:8545/'
-    const walletAddress = '0x17aab1e0745240ed1f4140f6fdd54485db8f6ec0'
+    const chainRPC = process.env.chainRPC // 'https://data-seed-prebsc-1-s1.binance.org:8545/'
+    const walletAddress = process.env.walletAddress // '0x17aab1e0745240ed1f4140f6fdd54485db8f6ec0'
+    const useWhitelist = process.env.useWhitelist // false
+    const title = process.env.title
+      .replace('[', '<span class="text-green-400">')
+      .replace(']', '</span>') // 'Are you whitelisted for [the presale?]'
 
     // const chainRPC = 'https://bsc-dataseed.binance.org/'
     // const walletAddress = '0xaac36a40a132472772c2bc410fcc275cc1b1df04'
-    const hardcap = 250000000000000000000
-    const conversion = 750
-    const useWhitelist = false
 
     let web3 = new Web3(chainRPC)
     let provider
@@ -286,8 +295,10 @@ export default defineComponent({
       },
     }
 
-    const rewards = [1624996020]
+    const rewards = process.env.rewards // [1624996020]
 
+    const hardcap = ref(0)
+    const conversion = ref(0)
     const connected = ref(false)
     const whitelisted = ref(false)
     const saleEnd = ref(0)
@@ -300,6 +311,9 @@ export default defineComponent({
     const withdrawLoading = ref(false)
     const connectLoading = ref(false)
     const modalVisible = ref(false)
+
+    const modalTitle = ref('')
+    const modalDescription = ref('')
 
     const errorMessage = ref('')
 
@@ -329,9 +343,11 @@ export default defineComponent({
       formatBNBBalance(dcipBalance.value)
     )
 
-    const hardCapReached = computed(() => dcipBalance.value >= hardcap)
+    const hardCapReached = computed(() => dcipBalance.value >= hardcap.value)
 
-    const percentHardcap = computed(() => (dcipBalance.value / hardcap) * 100)
+    const percentHardcap = computed(
+      () => (dcipBalance.value / hardcap.value) * 100
+    )
 
     const contract = new web3.eth.Contract(privateSaleABI, walletAddress)
 
@@ -389,6 +405,7 @@ export default defineComponent({
         })
 
         getBalances()
+        getModalValues('deposit')
 
         modalVisible.value = true
       } catch (error) {
@@ -412,6 +429,7 @@ export default defineComponent({
         })
 
         getBalances()
+        getModalValues('withdraw')
 
         modalVisible.value = true
       } catch (error) {
@@ -436,6 +454,24 @@ export default defineComponent({
       connected.value = true
     }
 
+    const getHardcap = async () => {
+      try {
+        const res = await contract.methods.hardCapEthAmount().call()
+        hardcap.value = res
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    const getConversionRate = async () => {
+      try {
+        const res = await contract.methods.rate().call()
+        conversion.value = res
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
     const getDCIPBalance = async () => {
       try {
         const res = await contract.methods.totalDepositedEthBalance().call()
@@ -454,12 +490,6 @@ export default defineComponent({
       } catch (error) {
         console.error(error)
       }
-    }
-
-    const getBalances = () => {
-      getUserBalance()
-      getAvailableUserBalance()
-      getDCIPBalance()
     }
 
     const getUserBalance = async () => {
@@ -507,8 +537,14 @@ export default defineComponent({
       }
     }
 
+    const getBalances = () => {
+      getUserBalance()
+      getAvailableUserBalance()
+      getDCIPBalance()
+    }
+
     const convertBNBTokensToDCIPTokens = (bnbWei) => {
-      return web3.utils.toBN((bnbWei * conversion).toString())
+      return web3.utils.toBN((bnbWei * conversion.value).toString())
     }
 
     const chunkSubstr = (str, size) => {
@@ -562,10 +598,11 @@ export default defineComponent({
 
       const nextReward = rewards.reduce(
         (i, reward) => (reward > now && reward < i ? reward : i),
-        1893452400 // januari 1st 2030
+        Number.MAX_VALUE // januari 1st 2030
       )
 
-      const timeLeft = Math.max(nextReward - now, 0)
+      const timeLeft =
+        nextReward === Number.MAX_VALUE ? 0 : Math.max(nextReward - now, 0)
 
       timerEndFormatted.value = formatTimeLeft(timeLeft)
     }
@@ -575,12 +612,24 @@ export default defineComponent({
       timerEndFormatted.value = formatTimeLeft(timeLeft)
     }
 
+    const getModalValues = (action = 'deposit') => {
+      if (action === 'deposit') {
+        modalTitle.value = process.env.modalTitleDeposit
+        modalDescription.value = process.env.modalDescriptionDeposit
+      } else if (action === 'withdraw') {
+        modalTitle.value = process.env.modalTitleWithdraw
+        modalDescription.value = process.env.modalDescriptionWithdraw
+      }
+    }
+
     if (saleEnded) {
       computeNextRewardFormatted()
     } else {
       computeSaleEndFormatted()
     }
 
+    getHardcap()
+    getConversionRate()
     getDCIPBalance()
 
     setInterval(() => {
@@ -618,6 +667,9 @@ export default defineComponent({
       errorMessage,
       errorMessageFormatted,
       hardCapReached,
+      title,
+      modalTitle,
+      modalDescription,
     }
   },
 })

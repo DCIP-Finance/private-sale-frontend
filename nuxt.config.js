@@ -2,6 +2,22 @@ export default {
   // Target: https://go.nuxtjs.dev/config-target
   target: 'static',
 
+  env: {
+    chainRPC: 'https://data-seed-prebsc-1-s1.binance.org:8545/',
+    walletAddress: '0x17aab1e0745240ed1f4140f6fdd54485db8f6ec0',
+    useWhitelist: false,
+    title: 'Are you whitelisted for [the private sale?]',
+
+    modalTitleDeposit: 'Deposit Succeeded!',
+    modalDescriptionDeposit:
+      'Congratulations and thank you for your support in DCIP.',
+
+    modalTitleWithdraw: 'Claim Succeeded!',
+    modalDescriptionWithdraw: 'Your DCIP funds are added to your wallet.',
+
+    rewards: [1624996020],
+  },
+
   // Global page headers: https://go.nuxtjs.dev/config-head
   head: {
     title: 'Presale | DCIP.finance',

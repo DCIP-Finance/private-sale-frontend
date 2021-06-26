@@ -7,7 +7,7 @@
     />
 
     <div class="md:px-12">
-      <section class="mb-12 md:mb-32">
+      <section class="mb-12 md:mb-24">
         <img src="~/assets/logo.png" alt="DCIP Logo" class="max-h-6" />
       </section>
 
@@ -64,6 +64,7 @@
                     src="~/assets/icon.png"
                     alt="DCIP Icon"
                     class="p-2 max-h-12"
+                    :class="{ 'opacity-60': saleEnded }"
                   />
                 </div>
               </div>
@@ -87,6 +88,7 @@
                     src="~/assets/icon.png"
                     alt="DCIP Icon"
                     class="p-2 max-h-12"
+                    :class="{ 'opacity-60': !saleEnded }"
                   />
                 </div>
               </div>
@@ -105,9 +107,11 @@
           <div class="bg-gray-800 rounded-lg px-4 md:px-6 py-6 mb-12">
             <div class="mb-6">
               <h2 class="text-white text-2xl md:text-3xl font-bold">
-                {{ saleEndFormatted }}
+                {{ timerEndFormatted }}
               </h2>
-              <p class="text-gray-600 md:text-xl">Until next reward</p>
+              <p class="text-gray-600 md:text-xl">
+                {{ saleEnded ? 'Until Next Reward' : 'Until Sale Ends' }}
+              </p>
             </div>
 
             <Button
@@ -282,6 +286,8 @@ export default defineComponent({
       },
     }
 
+    const rewards = [1624996020]
+
     const connected = ref(false)
     const whitelisted = ref(false)
     const saleEnd = ref(0)
@@ -297,7 +303,7 @@ export default defineComponent({
 
     const errorMessage = ref('')
 
-    const saleEndFormatted = ref('00h 00m 00s')
+    const timerEndFormatted = ref('00h 00m 00s')
 
     const errorMessageFormatted = computed(
       () => errorMessage.value.split(': {')[0]
@@ -538,21 +544,52 @@ export default defineComponent({
       return web3.utils.fromWei(balance)
     }
 
-    const computeSaleEndFormatted = () => {
-      const timeLeft = Math.max(saleEnd.value - new Date().getTime() / 1000, 0)
+    const formatTimeLeft = (timeLeft) => {
+      const date = new Date(timeLeft * 1000)
 
-      const date = new Date(timeLeft * 1000).toISOString()
+      const days = Math.floor(date / 8.64e7)
 
-      saleEndFormatted.value = `${date.substr(11, 2)}h ${date.substr(
+      const dateISO = date.toISOString()
+
+      return `${days}d ${dateISO.substr(11, 2)}h ${dateISO.substr(
         14,
         2
-      )}m ${date.substr(17, 2)}s`
+      )}m ${dateISO.substr(17, 2)}s`
     }
 
-    getSaleEndTimestamp()
+    const computeNextRewardFormatted = () => {
+      const now = new Date().getTime() / 1000
+
+      const nextReward = rewards.reduce(
+        (i, reward) => (reward > now && reward < i ? reward : i),
+        1893452400 // januari 1st 2030
+      )
+
+      const timeLeft = Math.max(nextReward - now, 0)
+
+      timerEndFormatted.value = formatTimeLeft(timeLeft)
+    }
+
+    const computeSaleEndFormatted = () => {
+      const timeLeft = Math.max(saleEnd.value - new Date().getTime() / 1000, 0)
+      timerEndFormatted.value = formatTimeLeft(timeLeft)
+    }
+
+    if (saleEnded) {
+      computeNextRewardFormatted()
+    } else {
+      computeSaleEndFormatted()
+    }
+
     getDCIPBalance()
 
-    setInterval(computeSaleEndFormatted, 1000)
+    setInterval(() => {
+      if (saleEnded) {
+        computeNextRewardFormatted()
+      } else {
+        computeSaleEndFormatted()
+      }
+    }, 1000)
 
     return {
       connect,
@@ -563,7 +600,7 @@ export default defineComponent({
       connected,
       whitelisted,
       saleEnd,
-      saleEndFormatted,
+      timerEndFormatted,
       userBalance,
       userBalanceFormatted,
       availableUserBalance,

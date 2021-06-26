@@ -89,14 +89,20 @@
                 v-if="connected"
                 :class="{
                   'opacity-60':
-                    !whitelisted || depositLoading || (connected && saleEnded),
+                    !whitelisted ||
+                    depositLoading ||
+                    (connected && saleEnded) ||
+                    (connected && hardCapReached),
                 }"
                 class="flex items-center bg-gray-700 mr-4 rounded-lg"
               >
                 <input
                   v-model="depositValue"
                   :disabled="
-                    !whitelisted || depositLoading || (connected && saleEnded)
+                    !whitelisted ||
+                    depositLoading ||
+                    (connected && saleEnded) ||
+                    (connected && hardCapReached)
                   "
                   type="number"
                   min="1"
@@ -112,6 +118,7 @@
                 :disabled="
                   (connected && !whitelisted) ||
                   depositLoading ||
+                  (connected && saleEnded) ||
                   (connected && saleEnded)
                 "
                 @click="connectOrDeposit"
@@ -129,7 +136,11 @@
               ></Button>
             </div>
 
-            <p v-if="connected && !whitelisted" class="text-white mt-4">
+            <p v-if="connected && hardCapReached" class="text-white mt-4">
+              Thanks for your amazing support! The hardcap has been reached and
+              the sale has ended.
+            </p>
+            <p v-else-if="connected && !whitelisted" class="text-white mt-4">
               Sorry, this sale is only for whitelisted accounts.
             </p>
 
@@ -245,6 +256,10 @@ export default defineComponent({
 
     const bnbBalanceFormatted = computed(() =>
       formatBNBBalance(dcipBalance.value)
+    )
+
+    const hardCapReached = computed(
+      () => dcipBalance.value >= 250000000000000000000
     )
 
     const percentHardcap = computed(
@@ -458,6 +473,7 @@ export default defineComponent({
       saleEnded,
       errorMessage,
       errorMessageFormatted,
+      hardCapReached,
     }
   },
 })

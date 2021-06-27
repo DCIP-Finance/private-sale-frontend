@@ -15,11 +15,12 @@ export default {
     rewards: [1625074511, 1627493711, 1630085711, 1632677711, 1614191711],
     minDeposit: 1,
     maxDeposit: 30,
+    abi: 'privatesale', // alternatief: presale
   },
 
   // Global page headers: https://go.nuxtjs.dev/config-head
   head: {
-    title: 'Private Sale | DCIP.finance',
+    title: 'Private Sale | DCIP.finance', // of Presale | DCIP.finance
     htmlAttrs: {
       lang: 'en',
     },

@@ -264,7 +264,7 @@ import { computed, defineComponent, ref } from '@nuxtjs/composition-api'
 import Web3 from 'web3'
 import Web3Modal from 'web3modal'
 import WalletConnectProvider from '@walletconnect/web3-provider'
-import privateSaleABI from '@/abis/private-sale.json'
+import abiJson from '@/abis/abis.json'
 
 export default defineComponent({
   setup() {
@@ -275,8 +275,7 @@ export default defineComponent({
       .replace('[', '<span class="text-green-400">')
       .replace(']', '</span>') // 'Are you whitelisted for [the presale?]'
 
-    // const chainRPC = 'https://bsc-dataseed.binance.org/'
-    // const walletAddress = '0xaac36a40a132472772c2bc410fcc275cc1b1df04'
+    const abi = abiJson[process.env.abi]
 
     let web3 = new Web3(chainRPC)
     let provider
@@ -351,7 +350,7 @@ export default defineComponent({
       () => (dcipBalance.value / hardcap.value) * 100
     )
 
-    const contract = new web3.eth.Contract(privateSaleABI, walletAddress)
+    const contract = new web3.eth.Contract(abi, walletAddress)
 
     const onAccountChanged = () => {
       setupAccount()

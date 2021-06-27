@@ -12,7 +12,7 @@ export default {
       'Congratulations and thank you for your support in DCIP.',
     modalTitleWithdraw: 'Claim Succeeded!',
     modalDescriptionWithdraw: 'The DCIP funds have been added to your wallet.',
-    rewards: [1624908911, 1627500911, 1630092911, 1632684911, 1635276911],
+    rewards: [1625074511, 1627493711, 1630085711, 1632677711, 1614191711],
     minDeposit: 1,
     maxDeposit: 30,
   },

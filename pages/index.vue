@@ -29,7 +29,7 @@
             <p class="font-semibold text-lg">$DCIP</p>
           </div>
           <h1
-            class="text-white text-3xl md:text-5xl font-bold leading-snug"
+            class="text-white text-3xl md:text-5xl font-bold leading-normal"
             v-html="title"
           />
 
@@ -66,14 +66,14 @@
                     src="~/assets/icon.png"
                     alt="DCIP Icon"
                     class="p-2 max-h-12"
-                    :class="{ 'opacity-60': saleEnded }"
+                    :class="{ 'opacity-60': saleEnded() }"
                   />
                 </div>
               </div>
               <div class="ml-3 w-5/6">
                 <p class="text-gray-600 md:text-xl">Locked Balance</p>
                 <p
-                  :class="saleEnded ? 'text-gray-600' : 'text-white'"
+                  :class="saleEnded() ? 'text-gray-600' : 'text-white'"
                   class="text-white font-bold text-lg md:text-2xl"
                 >
                   {{ userBalanceFormatted }}
@@ -90,7 +90,7 @@
                     src="~/assets/icon.png"
                     alt="DCIP Icon"
                     class="p-2 max-h-12"
-                    :class="{ 'opacity-60': !saleEnded }"
+                    :class="{ 'opacity-60': !saleEnded() }"
                   />
                 </div>
               </div>
@@ -99,7 +99,7 @@
                 <p
                   class="font-bold text-lg md:text-2xl"
                   :class="
-                    saleEnded
+                    saleEnded()
                       ? availableUserBalance > 0
                         ? 'text-green-400'
                         : 'text-white'
@@ -118,7 +118,7 @@
                 {{ timerEndFormatted }}
               </h2>
               <p class="text-gray-600 md:text-xl">
-                {{ saleEnded ? 'Until Next Reward' : 'Until Sale Ends' }}
+                {{ saleEnded() ? 'Until Next Unlock' : 'Until Sale Ends' }}
               </p>
             </div>
 
@@ -139,7 +139,7 @@
                   /></svg></template
             ></Button>
 
-            <div v-if="connected && !saleEnded" class="flex">
+            <div v-if="connected && !saleEnded()" class="flex">
               <div
                 :class="{
                   'opacity-60':
@@ -151,8 +151,8 @@
                   v-model="depositValue"
                   :disabled="!whitelisted || depositLoading || hardCapReached"
                   type="number"
-                  min="1"
-                  max="50"
+                  :min="minDeposit"
+                  :max="maxDeposit"
                   class="bg-gray-700 text-white rounded px-4 h-full"
                 />
                 <p class="text-white font-bold pr-4">BNB</p>
@@ -177,7 +177,7 @@
             </div>
 
             <Button
-              v-if="connected && saleEnded"
+              v-if="connected && saleEnded()"
               type="gradient"
               :loading="withdrawLoading"
               :disabled="availableUserBalance <= 0 || withdrawLoading"
@@ -195,7 +195,7 @@
             ></Button>
 
             <p
-              v-if="connected && hardCapReached && !saleEnded"
+              v-if="connected && hardCapReached && !saleEnded()"
               class="text-white mt-4"
             >
               Thanks for your amazing support! The hardcap has been reached and
@@ -311,6 +311,8 @@ export default defineComponent({
     const withdrawLoading = ref(false)
     const connectLoading = ref(false)
     const modalVisible = ref(false)
+    const minDeposit = ref(process.env.minDeposit)
+    const maxDeposit = ref(process.env.maxDeposit)
 
     const modalTitle = ref('')
     const modalDescription = ref('')
@@ -323,9 +325,9 @@ export default defineComponent({
       () => errorMessage.value.split(': {')[0]
     )
 
-    const saleEnded = computed(() => {
+    const saleEnded = () => {
       return saleEnd.value - new Date().getTime() / 1000 <= 0
-    })
+    }
 
     const userBalanceFormatted = computed(() =>
       formatDCIPBalance(userBalance.value)
@@ -484,7 +486,7 @@ export default defineComponent({
     const getSaleEndTimestamp = async () => {
       try {
         const res = await contract.methods.presaleEndTimestamp().call()
-        saleEnd.value = res
+        saleEnd.value = Number(res)
 
         computeSaleEndFormatted()
       } catch (error) {
@@ -537,9 +539,9 @@ export default defineComponent({
       }
     }
 
-    const getBalances = () => {
+    const getBalances = async () => {
+      await getAvailableUserBalance()
       getUserBalance()
-      getAvailableUserBalance()
       getDCIPBalance()
     }
 
@@ -593,6 +595,14 @@ export default defineComponent({
       )}m ${dateISO.substr(17, 2)}s`
     }
 
+    const computeEndTimeFormat = () => {
+      if (saleEnded()) {
+        computeNextRewardFormatted()
+      } else {
+        computeSaleEndFormatted()
+      }
+    }
+
     const computeNextRewardFormatted = () => {
       const now = new Date().getTime() / 1000
 
@@ -622,23 +632,12 @@ export default defineComponent({
       }
     }
 
-    if (saleEnded) {
-      computeNextRewardFormatted()
-    } else {
-      computeSaleEndFormatted()
-    }
-
     getHardcap()
     getConversionRate()
     getDCIPBalance()
+    getSaleEndTimestamp()
 
-    setInterval(() => {
-      if (saleEnded) {
-        computeNextRewardFormatted()
-      } else {
-        computeSaleEndFormatted()
-      }
-    }, 1000)
+    setInterval(computeEndTimeFormat, 1000)
 
     return {
       connect,
@@ -670,6 +669,8 @@ export default defineComponent({
       title,
       modalTitle,
       modalDescription,
+      minDeposit,
+      maxDeposit,
     }
   },
 })

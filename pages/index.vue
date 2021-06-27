@@ -213,7 +213,7 @@
           <p class="text-white text-xl mb-2 font-bold">Current Sale Hardcap</p>
           <div class="h-3 bg-gray-800 rounded-full mb-2">
             <div
-              :style="`width: ${percentHardcap}%; min-width: 10px`"
+              :style="`width: ${percentHardcap()}%; min-width: 10px`"
               class="bg-green-400 rounded-full h-full transition-all"
             ></div>
           </div>
@@ -296,14 +296,15 @@ export default defineComponent({
 
     const rewards = process.env.rewards // [1624996020]
 
-    const hardcap = ref(0)
+    const hardcap = ref(web3.utils.toBN(0))
     const conversion = ref(0)
     const connected = ref(false)
     const whitelisted = ref(false)
     const saleEnd = ref(0)
     const userBalance = ref(-1)
     const availableUserBalance = ref(-1)
-    const dcipBalance = ref(-1)
+    const dcipBalance = ref(web3.utils.toBN(-1))
+    const bnbBalance = ref(-1)
     const currentWalletAddress = ref(null)
     const depositValue = ref(1)
     const depositLoading = ref(false)
@@ -341,14 +342,14 @@ export default defineComponent({
     )
 
     const bnbBalanceFormatted = computed(() =>
-      formatBNBBalance(dcipBalance.value)
+      formatBNBBalance(bnbBalance.value)
     )
 
     const hardCapReached = computed(() => dcipBalance.value >= hardcap.value)
 
-    const percentHardcap = computed(
-      () => (dcipBalance.value / hardcap.value) * 100
-    )
+    const percentHardcap = () => {
+      return (dcipBalance.value / hardcap.value) * 100
+    }
 
     const contract = new web3.eth.Contract(abi, walletAddress)
 
@@ -458,7 +459,7 @@ export default defineComponent({
     const getHardcap = async () => {
       try {
         const res = await contract.methods.hardCapEthAmount().call()
-        hardcap.value = res
+        hardcap.value = web3.utils.toBN(res) * 1000
       } catch (error) {
         console.error(error)
       }
@@ -476,7 +477,8 @@ export default defineComponent({
     const getDCIPBalance = async () => {
       try {
         const res = await contract.methods.totalDepositedEthBalance().call()
-        dcipBalance.value = res
+        dcipBalance.value = convertBNBTokensToDCIPTokens(res)
+        bnbBalance.value = res
       } catch (error) {
         console.error(error)
       }
@@ -545,7 +547,7 @@ export default defineComponent({
     }
 
     const convertBNBTokensToDCIPTokens = (bnbWei) => {
-      return web3.utils.toBN((bnbWei * conversion.value).toString())
+      return web3.utils.toBN(bnbWei).mul(web3.utils.toBN(conversion.value))
     }
 
     const chunkSubstr = (str, size) => {

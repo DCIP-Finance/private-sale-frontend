@@ -304,7 +304,7 @@ export default defineComponent({
     const userBalance = ref(-1)
     const availableUserBalance = ref(-1)
     const dcipBalance = ref(web3.utils.toBN(-1))
-    const bnbBalance = ref(-1)
+    const bnbBalance = ref(web3.utils.toBN(-1))
     const currentWalletAddress = ref(null)
     const depositValue = ref(1)
     const depositLoading = ref(false)
@@ -337,18 +337,18 @@ export default defineComponent({
       formatDCIPBalance(availableUserBalance.value)
     )
 
-    const dcipBalanceFormatted = computed(() =>
-      formatDCIPBalance(dcipBalance.value)
-    )
+    const dcipBalanceFormatted = computed(() => {
+      return formatDCIPBalance(dcipBalance.value)
+    })
 
     const bnbBalanceFormatted = computed(() =>
       formatBNBBalance(bnbBalance.value)
     )
 
-    const hardCapReached = computed(() => dcipBalance.value >= hardcap.value)
+    const hardCapReached = computed(() => bnbBalance.value >= hardcap.value)
 
     const percentHardcap = () => {
-      return (dcipBalance.value / hardcap.value) * 100
+      return (bnbBalance.value / hardcap.value) * 100
     }
 
     const contract = new web3.eth.Contract(abi, walletAddress)
@@ -459,7 +459,7 @@ export default defineComponent({
     const getHardcap = async () => {
       try {
         const res = await contract.methods.hardCapEthAmount().call()
-        hardcap.value = web3.utils.toBN(res) * 1000
+        hardcap.value = web3.utils.toBN(res)
       } catch (error) {
         console.error(error)
       }
@@ -478,7 +478,7 @@ export default defineComponent({
       try {
         const res = await contract.methods.totalDepositedEthBalance().call()
         dcipBalance.value = convertBNBTokensToDCIPTokens(res)
-        bnbBalance.value = res
+        bnbBalance.value = web3.utils.toBN(res)
       } catch (error) {
         console.error(error)
       }

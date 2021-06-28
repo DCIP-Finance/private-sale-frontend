@@ -15,7 +15,7 @@ export default {
     rewards: [1625083157], // 1625081711, 1627500911, 1630092911, 1632684911, 1635276911
     minDeposit: 0,
     maxDeposit: 5,
-    abi: 'privatesale', // alternatief: presale
+    abi: 'presale', // alternatief: presale
   },
 
   // Global page headers: https://go.nuxtjs.dev/config-head

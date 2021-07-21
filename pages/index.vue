@@ -532,7 +532,7 @@ export default defineComponent({
           return deposits.divn(rewards.length)
         }
       }
-      return 0
+      return web3.utils.toBN(0)
     }
 
     const getAvailableUserBalance = async () => {

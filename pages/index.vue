@@ -294,7 +294,9 @@ export default defineComponent({
       },
     }
 
-    const rewards = process.env.rewards // [1624996020]
+    const rewards = Array.from(process.env.rewards)
+      .map((item) => parseInt(item))
+      .sort() // [1624996020]
 
     const hardcap = ref(web3.utils.toBN(0))
     const conversion = ref(0)
@@ -511,13 +513,34 @@ export default defineComponent({
       }
     }
 
+    const getCalculatedAmount = async (address) => {
+      const deposits = convertBNBTokensToDCIPTokens(
+        await contract.methods.deposits(address).call()
+      )
+
+      const withdraws = web3.utils.toBN(
+        await contract.methods.withdraws(address).call()
+      )
+
+      const now = new Date().getTime() / 1000
+
+      for (let i = 0; i < rewards.length; i++) {
+        if (
+          now > rewards[i] &&
+          withdraws.eq(deposits.divn(rewards.length).muln(i))
+        ) {
+          return deposits.divn(rewards.length)
+        }
+      }
+      return 0
+    }
+
     const getAvailableUserBalance = async () => {
       try {
-        const availableBalance = await contract.methods
-          .getCalculatedAmount(currentWalletAddress.value)
-          .call()
-
-        availableUserBalance.value = availableBalance
+        // Apparently we can't use the contracts getCalculatedAmount because msg.Sender is not set correctly.
+        availableUserBalance.value = await getCalculatedAmount(
+          currentWalletAddress.value
+        )
       } catch (error) {
         console.error(error)
       }
